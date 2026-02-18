@@ -18,6 +18,8 @@ import {
   Sparkles,
   Send,
   Search,
+  Menu,
+  X,
 } from "lucide-react";
 
 import {
@@ -81,7 +83,10 @@ export default function VscodeShell() {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const [glow, setGlow] = useState({ x: 0, y: 0, visible: false });
 
-  // Theme watcher so overlays can be theme-aware
+  // Mobile sidebar drawer
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // Theme watcher for theme-aware overlays
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   useEffect(() => {
     const root = document.documentElement;
@@ -92,20 +97,16 @@ export default function VscodeShell() {
     }
 
     syncTheme();
-
     const obs = new MutationObserver(syncTheme);
     obs.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
-
     return () => obs.disconnect();
   }, []);
 
-  // Theme-aware overlay colors (prevents "foggy" look in light mode)
   const topBarBg = theme === "dark" ? "rgba(0,0,0,0.20)" : "rgba(246,241,230,0.78)";
   const tabsBg = theme === "dark" ? "rgba(0,0,0,0.10)" : "rgba(246,241,230,0.62)";
   const statusBg = theme === "dark" ? "rgba(0,0,0,0.20)" : "rgba(246,241,230,0.78)";
-  const focusDimBg = theme === "dark" ? "rgba(0,0,0,0.25)" : "rgba(19,38,28,0.10)";
+  const focusDimBg = theme === "dark" ? "rgba(0,0,0,0.25)" : "rgba(21,36,28,0.10)";
 
-  // Make BackgroundFX lighter in light mode
   const bgFxOpacity = theme === "dark" ? 1 : 0.75;
 
   function openFile(key: FileKey) {
@@ -116,6 +117,9 @@ export default function VscodeShell() {
     setFocusDim(true);
     window.setTimeout(() => setFocusPulse(false), 550);
     window.setTimeout(() => setFocusDim(false), 200);
+
+    // If on phone, close drawer after selecting
+    setMobileSidebarOpen(false);
   }
 
   function closeTab(key: FileKey) {
@@ -150,6 +154,7 @@ export default function VscodeShell() {
 
       if (e.key === "Escape") {
         setPaletteOpen(false);
+        setMobileSidebarOpen(false);
         return;
       }
 
@@ -218,6 +223,64 @@ export default function VscodeShell() {
 
   const ActiveIcon = fileMeta[activeKey].Icon;
 
+  function SidebarContent({ compact }: { compact?: boolean }) {
+    return (
+      <div className={compact ? "px-3 py-3" : "px-2 pb-3"}>
+        <div className="px-2 py-1 text-sm text-[var(--foreground)] flex items-center gap-2">
+          <span className="opacity-80">▾</span>
+          <span className="opacity-90">PORTFOLIO</span>
+        </div>
+
+        <div className="mt-2 space-y-1 text-sm relative">
+          {fileList.map((k) => {
+            const Icon = fileMeta[k].Icon;
+            const isActive = activeKey === k;
+
+            return (
+              <motion.div
+                key={k}
+                whileHover={{ x: 5 }}
+                whileTap={{ scale: 0.985 }}
+                onClick={() => openFile(k)}
+                className={[
+                  "px-2 py-2 rounded-md cursor-pointer flex items-center gap-2 select-none relative",
+                  isActive
+                    ? "bg-[var(--bg-panel)] text-[var(--foreground)]"
+                    : "text-[var(--muted)] hover:bg-black/5",
+                ].join(" ")}
+              >
+                {isActive ? (
+                  <motion.span
+                    layoutId="activeIndicator"
+                    className="absolute left-0 top-1 bottom-1 w-[3px] rounded-full"
+                    style={{ background: "var(--accent-2)" }}
+                  />
+                ) : null}
+
+                <Icon size={16} className="opacity-90" />
+                <span>{fileMeta[k].title}</span>
+              </motion.div>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 px-2">
+          <button
+            onClick={() => {
+              setPaletteOpen(true);
+              setPaletteIndex(0);
+              setMobileSidebarOpen(false);
+            }}
+            className="w-full rounded-md border border-[var(--border)] bg-white/5 px-3 py-2 text-xs text-[var(--muted)] hover:bg-white/10 flex items-center justify-center gap-2"
+          >
+            <Search size={14} />
+            <span>Cmd+K Command Palette</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[var(--bg-main)] text-[var(--foreground)]">
       {/* Top bar */}
@@ -225,16 +288,25 @@ export default function VscodeShell() {
         className="h-12 flex items-center justify-between px-3 border-b border-[var(--border)] backdrop-blur"
         style={{ background: topBarBg }}
       >
-        <div className="flex items-center gap-2">
-          <div className="flex gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          {/* Mobile menu button */}
+          <button
+            className="md:hidden mr-1 p-2 rounded-md border border-[var(--border)] bg-white/5 hover:bg-white/10"
+            onClick={() => setMobileSidebarOpen(true)}
+            aria-label="Open sidebar"
+          >
+            <Menu size={16} />
+          </button>
+
+          <div className="flex gap-2 shrink-0">
             <span className="h-3 w-3 rounded-full bg-[#ff5f56]" />
             <span className="h-3 w-3 rounded-full bg-[#ffbd2e]" />
             <span className="h-3 w-3 rounded-full bg-[#27c93f]" />
           </div>
 
-          <div className="ml-3 flex items-center gap-2 text-sm text-[var(--muted)]">
-            <ActiveIcon size={16} className="opacity-90" />
-            <span className="opacity-90">~/shrey/portfolio/{fileMeta[activeKey].title}</span>
+          <div className="ml-3 flex items-center gap-2 text-sm text-[var(--muted)] min-w-0">
+            <ActiveIcon size={16} className="opacity-90 shrink-0" />
+            <span className="opacity-90 truncate">~/shrey/portfolio/{fileMeta[activeKey].title}</span>
           </div>
         </div>
 
@@ -243,74 +315,57 @@ export default function VscodeShell() {
         </div>
       </div>
 
-      {/* Main layout */}
-      <div className="grid grid-cols-[260px_1fr] min-h-[calc(100vh-48px-32px)]">
-        {/* Sidebar */}
+      {/* Mobile Sidebar Drawer */}
+      <AnimatePresence>
+        {mobileSidebarOpen && (
+          <motion.div
+            className="fixed inset-0 z-[60] md:hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div
+              className="absolute inset-0 bg-black/50"
+              onClick={() => setMobileSidebarOpen(false)}
+            />
+            <motion.div
+              initial={{ x: -320 }}
+              animate={{ x: 0 }}
+              exit={{ x: -320 }}
+              transition={{ type: "spring", stiffness: 260, damping: 28 }}
+              className="absolute left-0 top-0 bottom-0 w-[300px] border-r border-[var(--border)] bg-[var(--bg-sidebar)]"
+            >
+              <div className="px-3 py-3 flex items-center justify-between border-b border-[var(--border)]">
+                <div className="text-xs tracking-widest text-[var(--muted)]">EXPLORER</div>
+                <button
+                  className="p-2 rounded-md border border-[var(--border)] bg-white/5 hover:bg-white/10"
+                  onClick={() => setMobileSidebarOpen(false)}
+                  aria-label="Close sidebar"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <SidebarContent compact />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Layout: stack on mobile, two columns on md+ */}
+      <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] min-h-[calc(100vh-48px-32px)]">
+        {/* Desktop sidebar */}
         <motion.div
           initial={{ x: -16, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.25 }}
-          className="border-r border-[var(--border)] bg-[var(--bg-sidebar)]"
+          className="hidden md:block border-r border-[var(--border)] bg-[var(--bg-sidebar)]"
         >
           <div className="px-3 py-3 text-xs tracking-widest text-[var(--muted)]">EXPLORER</div>
-
-          <div className="px-2 pb-3">
-            <div className="px-2 py-1 text-sm text-[var(--foreground)] flex items-center gap-2">
-              <span className="opacity-80">▾</span>
-              <span className="opacity-90">PORTFOLIO</span>
-            </div>
-
-            <div className="mt-2 space-y-1 text-sm relative">
-              {fileList.map((k) => {
-                const Icon = fileMeta[k].Icon;
-                const isActive = activeKey === k;
-
-                return (
-                  <motion.div
-                    key={k}
-                    whileHover={{ x: 5 }}
-                    whileTap={{ scale: 0.985 }}
-                    onClick={() => openFile(k)}
-                    className={[
-                      "px-2 py-1 rounded-md cursor-pointer flex items-center gap-2 select-none relative",
-                      isActive
-  ? "bg-[var(--bg-panel)] text-[var(--foreground)]"
-  : "text-[var(--muted)] hover:bg-black/5",
-                    ].join(" ")}
-                  >
-                    {isActive ? (
-                      <motion.span
-                        layoutId="activeIndicator"
-                        className="absolute left-0 top-1 bottom-1 w-[3px] rounded-full"
-                        style={{ background: "var(--accent-2)" }}
-                      />
-                    ) : null}
-
-                    <Icon size={16} className="opacity-90" />
-                    <span>{fileMeta[k].title}</span>
-                  </motion.div>
-                );
-              })}
-            </div>
-
-            <div className="mt-4 px-2">
-              <button
-                onClick={() => {
-                  setPaletteOpen(true);
-                  setPaletteIndex(0);
-                }}
-                className="w-full rounded-md border border-[var(--border)] bg-white/5 px-3 py-2 text-xs text-[var(--muted)] hover:bg-white/10 flex items-center justify-center gap-2"
-              >
-                <Search size={14} />
-                <span>Cmd+K Command Palette</span>
-              </button>
-            </div>
-          </div>
+          <SidebarContent />
         </motion.div>
 
         {/* Editor */}
         <div ref={editorRef} className="relative bg-[var(--bg-main)] overflow-hidden">
-          {/* Animated background (theme aware) */}
           <div
             style={{
               ["--accent-2" as any]: fileMeta[activeKey].accent,
@@ -321,7 +376,6 @@ export default function VscodeShell() {
             <BackgroundFX accent={fileMeta[activeKey].accent} />
           </div>
 
-          {/* Focus dim overlay (theme aware) */}
           <AnimatePresence>
             {focusDim ? (
               <motion.div
@@ -334,7 +388,6 @@ export default function VscodeShell() {
             ) : null}
           </AnimatePresence>
 
-          {/* Cursor glow (theme aware, stops light mode looking foggy) */}
           <div
             className="pointer-events-none absolute inset-0 z-[5]"
             style={{
@@ -347,7 +400,7 @@ export default function VscodeShell() {
             }}
           />
 
-          {/* Tabs bar */}
+          {/* Tabs */}
           <div
             className="relative h-10 flex items-end border-b border-[var(--border)] overflow-x-auto z-20 backdrop-blur"
             style={{ background: tabsBg }}
@@ -366,11 +419,13 @@ export default function VscodeShell() {
                     transition={{ type: "spring", stiffness: 420, damping: 26 }}
                     className={[
                       "h-10 px-3 flex items-center gap-2 border-r border-[var(--border)] text-sm cursor-pointer whitespace-nowrap",
-                      activeKey === t.key ? "bg-[var(--bg-panel)] text-[var(--foreground)]" : "text-[var(--muted)] hover:bg-white/5",
+                      activeKey === t.key
+                        ? "bg-[var(--bg-panel)] text-[var(--foreground)]"
+                        : "text-[var(--muted)] hover:bg-white/5",
                     ].join(" ")}
                     onClick={() => setActiveKey(t.key)}
                   >
-                    <span>{t.title}</span>
+                    <span className="truncate max-w-[160px] sm:max-w-none">{t.title}</span>
                     {tabs.length > 1 ? (
                       <button
                         className="ml-1 px-1 hover:bg-white/10 rounded"
@@ -389,8 +444,8 @@ export default function VscodeShell() {
             </AnimatePresence>
           </div>
 
-          {/* Content */}
-          <div className="relative p-6 z-20">
+          {/* Content area: smaller padding on mobile */}
+          <div className="relative z-20 p-3 sm:p-4 md:p-6">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeKey}
@@ -398,7 +453,7 @@ export default function VscodeShell() {
                 animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                 exit={{ opacity: 0, y: -8, filter: "blur(2px)" }}
                 transition={{ duration: 0.22 }}
-                className="rounded-xl border border-[var(--border)] bg-white/5 p-6 relative shadow-[0_1px_0_rgba(0,0,0,0.05)]"
+                className="rounded-xl border border-[var(--border)] bg-white/5 p-4 sm:p-5 md:p-6 relative shadow-[0_1px_0_rgba(0,0,0,0.05)]"
                 style={{ ["--accent-2" as any]: fileMeta[activeKey].accent }}
               >
                 {renderSection(activeKey, focusPulse, openPeek)}
@@ -410,11 +465,11 @@ export default function VscodeShell() {
         </div>
       </div>
 
-      {/* Command palette */}
+      {/* Command Palette */}
       <AnimatePresence>
         {paletteOpen && (
           <motion.div
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-start justify-center pt-32 z-50"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-start justify-center pt-24 sm:pt-32 z-50"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -465,9 +520,7 @@ export default function VscodeShell() {
                     </div>
                   );
                 })}
-                {filtered.length === 0 && (
-                  <div className="px-4 py-3 text-sm text-[var(--muted)]">No results</div>
-                )}
+                {filtered.length === 0 && <div className="px-4 py-3 text-sm text-[var(--muted)]">No results</div>}
               </div>
             </motion.div>
           </motion.div>
@@ -481,27 +534,28 @@ export default function VscodeShell() {
       >
         <div className="flex items-center gap-3">
           <span>main</span>
-          <span>0 problems</span>
+          <span className="hidden sm:inline">0 problems</span>
         </div>
-        <div className="flex items-center gap-3">
-          <span>TypeScript</span>
-          <span>UTF-8</span>
-<span
-  className={[
-    "px-2 py-[2px] rounded-md border border-[var(--border)]",
-    sbState === "connected"
-      ? theme === "dark"
-        ? "text-green-300 bg-white/5"
-        : "text-[var(--accent)] bg-[var(--bg-panel)]"
-      : sbState === "offline"
-      ? theme === "dark"
-        ? "text-red-300 bg-white/5"
-        : "text-red-700 bg-[var(--bg-panel)]"
-      : "text-[var(--accent-2)] bg-white/5",
-  ].join(" ")}
->
-  Supabase: {sbState === "checking" ? "checking..." : sbState}
-</span>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <span className="hidden sm:inline">TypeScript</span>
+          <span className="hidden sm:inline">UTF-8</span>
+
+          <span
+            className={[
+              "px-2 py-[2px] rounded-md border border-[var(--border)]",
+              sbState === "connected"
+                ? theme === "dark"
+                  ? "text-green-300 bg-white/5"
+                  : "text-[var(--accent)] bg-[var(--bg-panel)]"
+                : sbState === "offline"
+                ? theme === "dark"
+                  ? "text-red-300 bg-white/5"
+                  : "text-red-700 bg-[var(--bg-panel)]"
+                : "text-[var(--accent-2)] bg-white/5",
+            ].join(" ")}
+          >
+            Supabase: {sbState === "checking" ? "checking..." : sbState}
+          </span>
         </div>
       </div>
     </div>
