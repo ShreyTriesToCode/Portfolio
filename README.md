@@ -40,3 +40,18 @@ It looks and behaves like a mini editor:
 git clone https://github.com/<your-username>/<your-repo>.git
 cd <your-repo>
 npm install
+```
+2) Add environment variables
+
+Create a file called .env.local in the project root:
+```bash
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+3) Run locally
+```bash
+npm run dev
+```
+Open:
+	•	http://localhost:3000
+   
