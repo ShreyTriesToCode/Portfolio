@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabaseClient";
 import SectionHeader from "@/components/SectionHeader";
 import type { PeekProject } from "@/components/PeekPanel";
+import { TypeAnimation } from "react-type-animation";
+import { Github, Linkedin, Mail, Download } from "lucide-react";
 
 const container = {
   hidden: { opacity: 0 },
@@ -13,39 +15,213 @@ const container = {
 
 const item = {
   hidden: { opacity: 0, y: 10, filter: "blur(2px)" },
-  show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.22 } },
+  show: {
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: { duration: 0.22 },
+  },
 };
 
+type ProfileRow = {
+  full_name: string;
+  headline: string;
+  about: string;
+  email: string;
+  github_url: string | null;
+  linkedin_url: string | null;
+  resume_url: string | null;
+  photo_url: string | null;
+};
+
+type ProjectRow = {
+  id: number;
+  title: string;
+  timeframe: string | null;
+  description: string;
+  bullets: string[] | null;
+  stack: string[] | null;
+  github_url: string | null;
+  live_url: string | null;
+  image_url: string | null;
+  featured: boolean | null;
+  sort_order: number | null;
+};
+
+/* =========================
+   SUMMARY (NOW HOLDS PROFILE.ABOUT)
+   - NO phrase typing here
+   - ONLY summary text typing
+   - Typing speed faster than reading pace
+========================= */
 export function SummarySection({ focusPulse }: { focusPulse?: boolean }) {
+  const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("profile")
+        .select(
+          "full_name,headline,about,email,github_url,linkedin_url,resume_url,photo_url"
+        )
+        .order("id", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (!mounted) return;
+
+      if (error) {
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      setProfile((data as ProfileRow) ?? null);
+      setLoading(false);
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   return (
     <div>
-      <SectionHeader
-        title="summary.md"
-        focusPulse={focusPulse}
-        subtitleSequence={[
-          "Full Stack + Cloud + ML Projects",
-          1200,
-          "Next.js + Supabase • VS Code style",
-          1200,
-          "Building products, not just projects.",
-          1200,
-        ]}
-      />
+      {/* Custom header so there is NO header typing animation */}
+      <div className="mb-6">
+        <motion.h1
+          initial={{ opacity: 0, y: 10, filter: "blur(2px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          transition={{ duration: 0.25 }}
+          className="text-4xl font-bold tracking-tight"
+        >
+          summary.md
+        </motion.h1>
 
-      <motion.div variants={container} initial="hidden" animate="show" className="grid gap-3 md:grid-cols-3">
-        <MotionStat label="CGPA" value="9.36/10" />
-        <MotionStat label="Graduation" value="2027" />
-        <MotionStat label="Focus" value="Full Stack + Cloud + ML" />
+        <motion.p
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.06, duration: 0.22 }}
+          className="mt-3 text-sm md:text-base text-[var(--muted)] leading-relaxed"
+        >
+          A quick intro and what I build.
+        </motion.p>
+
+        <div className="mt-4 relative">
+          <motion.div
+            initial={{ scaleX: 0, opacity: 0 }}
+            animate={{ scaleX: 1, opacity: 1 }}
+            transition={{ delay: 0.1, duration: 0.35 }}
+            style={{ transformOrigin: "left" }}
+            className="h-px w-full bg-[var(--border)]"
+          />
+          <motion.div
+            animate={focusPulse ? { opacity: [0, 1, 0] } : { opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            className="absolute left-0 top-[-1px] h-[3px] w-[220px] rounded-full"
+            style={{
+              background: "linear-gradient(90deg, var(--accent-2), transparent)",
+            }}
+          />
+        </div>
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.22 }}
+        className="rounded-xl border border-[var(--border)] bg-white/5 p-5"
+      >
+        <div className="text-xs text-[var(--muted)] mb-2">Summary</div>
+
+        {loading ? (
+          <div className="space-y-3">
+            <div className="h-4 w-[92%] rounded bg-white/10" />
+            <div className="h-4 w-[86%] rounded bg-white/10" />
+            <div className="h-4 w-[70%] rounded bg-white/10" />
+          </div>
+        ) : profile?.about ? (
+          <TypeAnimation
+            sequence={[profile.about]}
+            wrapper="p"
+            speed={70}   // faster typing
+            repeat={0}
+            cursor={true}
+            className="text-[var(--muted)] leading-relaxed break-words whitespace-pre-wrap"
+          />
+        ) : (
+          <p className="text-[var(--muted)] leading-relaxed">
+            Add your summary in Supabase: <b>profile.about</b>
+          </p>
+        )}
       </motion.div>
 
-      <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} className="mt-6 text-[var(--muted)] leading-relaxed">
-        Use <span className="text-[var(--accent-2)] font-semibold">Cmd+K</span> to jump between sections fast.
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.12 }}
+        className="mt-5 text-[var(--muted)] leading-relaxed"
+      >
+        Use <span className="text-[var(--accent-2)] font-semibold">Cmd+K</span>{" "}
+        for fast navigation. Projects open in the Peek panel.
       </motion.p>
     </div>
   );
 }
 
+/* =========================
+   ABOUT (NO SUMMARY HERE)
+   - Photo card compact so it does NOT cause scroll
+   - No hardcoded fallback photo/name/links content
+========================= */
 export function AboutSection({ focusPulse }: { focusPulse?: boolean }) {
+  const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const email = "forshreyanshwork@gmail.com";
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("profile")
+        .select(
+          "full_name,headline,about,email,github_url,linkedin_url,resume_url,photo_url"
+        )
+        .order("id", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (!mounted) return;
+
+      if (error) {
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      setProfile((data as ProfileRow) ?? null);
+      setLoading(false);
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const fullName = profile?.full_name ?? "";
+  const headline = profile?.headline ?? "";
+  const github = profile?.github_url ?? "";
+  const linkedin = profile?.linkedin_url ?? "";
+  const resumeUrl = profile?.resume_url ?? "";
+  const photoUrl = profile?.photo_url ?? "";
+
   return (
     <div>
       <SectionHeader
@@ -54,52 +230,173 @@ export function AboutSection({ focusPulse }: { focusPulse?: boolean }) {
         subtitleSequence={[
           "B.Tech CSE @ SRM IST (KTR) • 2027",
           1200,
-          "Product building • Cloud fundamentals • ML systems",
-          1200,
-          "Clean UI, strong backend, real deployments.",
+          "Interested in Web, App and ML development projects",
           1200,
         ]}
       />
 
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-        <motion.div variants={container} initial="hidden" animate="show" className="flex-1 grid gap-3 md:grid-cols-2">
-          <Info label="Email" value="ss4217@srmist.edu.in" />
-          <Info label="Phone" value="7014792383" />
-          <Info label="Degree" value="B.Tech CSE" />
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
+        {/* LEFT: info cards */}
+        <motion.div
+          variants={container}
+          initial="hidden"
+          animate="show"
+          className="grid gap-3 md:grid-cols-2"
+        >
+          <Info label="Email" value={email} />
           <Info label="College" value="SRM IST - Kattankulathur" />
+          <Info label="Degree" value="B.Tech CSE" />
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.25 }} className="w-full lg:w-[280px]">
+        {/* RIGHT: profile card */}
+        <motion.div
+          initial={{ opacity: 0, x: 10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.25 }}
+          className="lg:sticky lg:top-4"
+        >
           <motion.div
-            whileHover={{ rotate: 0.3, y: -2 }}
-            transition={{ type: "spring", stiffness: 350, damping: 20 }}
+            whileHover={{ rotate: 0.2, y: -1 }}
+            transition={{ type: "spring", stiffness: 320, damping: 22 }}
             className="rounded-xl border border-[var(--border)] bg-white/5 p-3"
           >
             <div className="text-xs text-[var(--muted)]">Profile</div>
-            <img src="/me.jpg" alt="Shreyansh Singhal" className="mt-2 w-full rounded-lg object-cover" />
-            <div className="mt-2 text-sm font-semibold">Shreyansh Singhal</div>
-            <div className="text-xs text-[var(--muted)]">SRM IST • CSE • 2027</div>
+
+            {/* Compact image block so it does not push layout */}
+            <div className="mt-2 rounded-lg overflow-hidden border border-[var(--border)] bg-black/20">
+              {loading ? (
+                <div className="h-[240px] w-full bg-white/10" />
+              ) : photoUrl ? (
+                <img
+                  src={photoUrl}
+                  alt={fullName || "Profile photo"}
+                  className="w-full h-[240px] object-cover object-top"
+                />
+              ) : (
+                <div className="h-[240px] w-full flex items-center justify-center text-xs text-[var(--muted)]">
+                  Add <b className="mx-1">profile.photo_url</b> in Supabase
+                </div>
+              )}
+            </div>
+
+            <div className="mt-2 text-sm font-semibold">
+              {loading ? (
+                <span className="inline-block h-4 w-40 rounded bg-white/10" />
+              ) : fullName ? (
+                fullName
+              ) : (
+                <span className="text-[var(--muted)] text-xs">
+                  Add profile.full_name in Supabase
+                </span>
+              )}
+            </div>
+
+            <div className="text-xs text-[var(--muted)] mt-1">
+              {loading ? (
+                <span className="inline-block h-3 w-52 rounded bg-white/10" />
+              ) : headline ? (
+                headline
+              ) : (
+                <span className="text-[var(--muted)] text-xs">
+                  Add profile.headline in Supabase
+                </span>
+              )}
+            </div>
+
+            <div className="mt-3 flex items-center gap-2">
+              <IconLink loading={loading} href={github} label="GitHub" Icon={Github} />
+              <IconLink loading={loading} href={linkedin} label="LinkedIn" Icon={Linkedin} />
+
+              <a
+                href={`mailto:${email}`}
+                className="rounded-md border border-[var(--border)] bg-white/5 hover:bg-white/10 p-2"
+                aria-label="Email"
+              >
+                <Mail size={16} />
+              </a>
+
+              <a
+                href={resumeUrl || "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={[
+                  "ml-auto rounded-md border border-[var(--border)] px-3 py-2 text-xs flex items-center gap-2",
+                  "bg-white/10 hover:bg-white/15",
+                  !resumeUrl || loading ? "opacity-50 pointer-events-none" : "",
+                ].join(" ")}
+                aria-label="Download Resume"
+              >
+                <Download size={14} />
+                Resume
+              </a>
+            </div>
           </motion.div>
         </motion.div>
       </div>
 
-      <motion.div variants={container} initial="hidden" animate="show" className="mt-6">
-        <motion.div variants={item} className="text-[var(--muted)] leading-relaxed">
-          Interested in{" "}
-          <span className="text-[var(--accent-2)] font-semibold">full stack engineering</span>,{" "}
-          <span className="text-[var(--accent-2)] font-semibold">cloud workflows</span>, and{" "}
-          <span className="text-[var(--accent-2)] font-semibold">ML-driven products</span>.
-        </motion.div>
-      </motion.div>
+      <div className="mt-6 text-sm text-[var(--muted)]">
+        Interested in development projects like web, app and even ML projects.
+      </div>
     </div>
   );
 }
 
+function IconLink({
+  loading,
+  href,
+  label,
+  Icon,
+}: {
+  loading: boolean;
+  href: string | null | undefined;
+  label: string;
+  Icon: React.ElementType;
+}) {
+  if (loading) {
+    return (
+      <div className="h-9 w-9 rounded-md border border-[var(--border)] bg-white/5" />
+    );
+  }
+  if (!href) {
+    return (
+      <div
+        className="h-9 w-9 rounded-md border border-[var(--border)] bg-white/5 opacity-50 flex items-center justify-center"
+        title={`Add ${label} URL in Supabase`}
+      >
+        <Icon size={16} />
+      </div>
+    );
+  }
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="rounded-md border border-[var(--border)] bg-white/5 hover:bg-white/10 p-2"
+      aria-label={label}
+    >
+      <Icon size={16} />
+    </a>
+  );
+}
+
+/* =========================
+   EDUCATION
+========================= */
 export function EducationSection({ focusPulse }: { focusPulse?: boolean }) {
   const edu = [
-    { title: "SRM IST - Kattankulathur (2027)", desc: "B.Tech, Computer Science and Engineering — CGPA 9.36/10" },
-    { title: "Swarajaya Senior Secondary School (2023)", desc: "Class XII — Northwest Accreditation Commission, USA — 80.6%" },
-    { title: "St Anselm’s Pink City School, Jaipur (2021)", desc: "Class X — CBSE — 82.8%" },
+    {
+      title: "SRM IST - Kattankulathur (2027)",
+      desc: "B.Tech, Computer Science and Engineering",
+    },
+    {
+      title: "Swarajaya Senior Secondary School (2023)",
+      desc: "Class XII",
+    },
+    {
+      title: "St Anselm’s Pink City School, Jaipur (2021)",
+      desc: "Class X",
+    },
   ];
 
   return (
@@ -107,20 +404,16 @@ export function EducationSection({ focusPulse }: { focusPulse?: boolean }) {
       <SectionHeader
         title="education.md"
         focusPulse={focusPulse}
-        subtitleSequence={[
-          "Education timeline • clean and readable",
-          1200,
-          "Strong CS fundamentals + project work",
-          1200,
-          "CGPA 9.36/10 • Grad 2027",
-          1200,
-        ]}
+        subtitleSequence={["Education timeline", 1200, "Consistent learning + project work", 1200]}
       />
-      <Timeline items={edu} />
+      <Timeline items={edu.map((e) => ({ title: e.title, desc: e.desc }))} />
     </div>
   );
 }
 
+/* =========================
+   PROJECTS (SUPABASE ONLY)
+========================= */
 export function ProjectsSection({
   focusPulse,
   onPeek,
@@ -128,49 +421,60 @@ export function ProjectsSection({
   focusPulse?: boolean;
   onPeek: (p: PeekProject) => void;
 }) {
-  const projects: PeekProject[] = [
-    {
-      title: "GenePredict",
-      meta: "Jul 2024 – Aug 2024",
-      desc: "Neurological disease risk prediction system with ML pipeline from preprocessing to risk scoring.",
-      bullets: ["Data preprocessing + feature extraction notebooks", "Model training and evaluation", "Risk-score output workflow"],
-      stack: ["Python", "Jupyter", "Pandas", "Scikit-learn"],
-    },
-    {
-      title: "WorkRex",
-      meta: "Jul 2024 – Nov 2025",
-      desc: "Flutter app with part-time jobs, forums, community, and study resources concept.",
-      bullets: ["Student and business owner flows", "Forum and resources module", "UI-first approach"],
-      stack: ["Flutter", "Dart"],
-    },
-    {
-      title: "Automatic Signature Verification System",
-      meta: "Feb 2025 – May 2025",
-      desc: "Desktop signature verification using ORB feature extraction + matching with a GUI.",
-      bullets: ["ORB keypoints + BF matching", "Preprocessing + visual feedback", "ttkbootstrap-style GUI"],
-      stack: ["Python", "OpenCV", "ORB"],
-    },
-    {
-      title: "EcoLogic - Garbage Classification Model",
-      meta: "Aug 2025 – Nov 2025",
-      desc: "Waste classification using transfer learning with ResNet-18 for Organic/Recyclable/Non-Recyclable.",
-      bullets: ["Transfer learning + augmentation", "Training and evaluation pipeline", "Inference workflow"],
-      stack: ["Python", "PyTorch", "ResNet-18"],
-    },
-    {
-      title: "Patient Healthcare Management System",
-      meta: "Feb 2026 – Present",
-      desc: "Centralized records + prescription-driven reminders + medicine ordering + caretaker access.",
-      bullets: ["Mobile-number access concept", "Reminders and ordering workflow", "Designed for real usage"],
-      stack: ["React or Flutter", "Supabase"],
-    },
-  ];
+  const [rows, setRows] = useState<ProjectRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const timelineItems = projects.map((p) => ({
-    title: `${p.title} (${p.meta ?? ""})`.trim(),
-    desc: p.desc,
-    onClick: () => onPeek(p),
-  }));
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("projects")
+        .select(
+          "id,title,timeframe,description,bullets,stack,github_url,live_url,image_url,featured,sort_order"
+        )
+        .order("sort_order", { ascending: true })
+        .order("id", { ascending: true });
+
+      if (!mounted) return;
+
+      if (error) {
+        setRows([]);
+        setLoading(false);
+        return;
+      }
+
+      setRows((data as ProjectRow[]) ?? []);
+      setLoading(false);
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const timelineItems = useMemo(() => {
+    return rows.map((p) => {
+      const peek: PeekProject = {
+        title: p.title,
+        meta: p.timeframe ?? undefined,
+        desc: p.description,
+        bullets: p.bullets ?? undefined,
+        stack: p.stack ?? undefined,
+        links: [
+          ...(p.github_url ? [{ label: "GitHub", href: p.github_url }] : []),
+          ...(p.live_url ? [{ label: "Live", href: p.live_url }] : []),
+        ],
+      };
+
+      return {
+        title: `${p.title}${p.timeframe ? ` (${p.timeframe})` : ""}`,
+        desc: p.description,
+        onClick: () => onPeek(peek),
+      };
+    });
+  }, [rows, onPeek]);
 
   return (
     <div>
@@ -178,20 +482,33 @@ export function ProjectsSection({
         title="projects/"
         focusPulse={focusPulse}
         subtitleSequence={[
-          "Click any project to open Peek panel",
+          "Projects loaded from Supabase",
           1200,
-          "Timeline + micro-interactions",
-          1200,
-          "Fast navigation via Cmd+K",
+          "Click any entry to open Peek",
           1200,
         ]}
       />
-      <Timeline items={timelineItems} clickable />
-      <div className="mt-5 text-xs text-[var(--muted)]">Tip: Click a project entry to open details.</div>
+
+      {loading ? (
+        <div className="space-y-3">
+          <div className="h-14 rounded-lg border border-[var(--border)] bg-white/5" />
+          <div className="h-14 rounded-lg border border-[var(--border)] bg-white/5" />
+          <div className="h-14 rounded-lg border border-[var(--border)] bg-white/5" />
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="text-sm text-[var(--muted)]">
+          No projects found. Add rows in Supabase table: <b>projects</b>.
+        </div>
+      ) : (
+        <Timeline items={timelineItems} clickable />
+      )}
     </div>
   );
 }
 
+/* =========================
+   SKILLS
+========================= */
 export function SkillsSection({ focusPulse }: { focusPulse?: boolean }) {
   return (
     <div>
@@ -199,28 +516,45 @@ export function SkillsSection({ focusPulse }: { focusPulse?: boolean }) {
         title="skills.ts"
         focusPulse={focusPulse}
         subtitleSequence={[
-          "Stack: Languages • Frameworks • Tools",
+          "Languages • Frameworks • Tools",
           1200,
-          "Optimized for real-world shipping",
-          1200,
-          "Frontend + backend + cloud comfort",
+          "Practical, project-based stack",
           1200,
         ]}
       />
 
-      <motion.div variants={container} initial="hidden" animate="show" className="grid gap-3 md:grid-cols-2">
-        <TagCard title="Programming Languages" items={["C/C++", "Java", "HTML", "CSS", "JavaScript", "Python", "Flutter"]} />
-        <TagCard title="Tools & Technologies" items={["Android Studio", "Git/GitHub", "Postman", "MySQL", "MongoDB", "Firebase", "Jupyter Notebook"]} />
-        <TagCard title="Languages & Frameworks" items={["React.js", "Next.js", "Node.js", "Express.js", "Flask", "Tailwind CSS"]} />
-        <TagCard title="Domain Knowledge" items={["AWS core (EC2, S3, IAM)", "Cloud DB basics (RDS/Aurora)"]} />
-        <TagCard title="Design Tools" items={["Figma", "Canva"]} />
-        <TagCard title="Technical Skills" items={["DSA", "OOP", "DBMS", "Debugging", "SDLC & Agile"]} />
-        <TagCard title="Languages" items={["English", "Hindi", "French (Elementary)"]} />
+      <motion.div
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="grid gap-3 md:grid-cols-2"
+      >
+        <TagCard
+          title="Programming Languages"
+          items={["C/C++", "Java", "JavaScript", "Python", "Dart"]}
+        />
+        <TagCard
+          title="Frontend"
+          items={["React", "Next.js", "Tailwind CSS", "HTML", "CSS"]}
+        />
+        <TagCard
+          title="Backend"
+          items={["Node.js", "Express", "Flask", "Supabase"]}
+        />
+        <TagCard
+          title="Tools"
+          items={["Git/GitHub", "Postman", "Figma", "Android Studio", "VS Code"]}
+        />
+        <TagCard title="Databases" items={["MySQL", "MongoDB", "Postgres"]} />
+        <TagCard title="Interests" items={["Full Stack", "App Dev", "ML"]} />
       </motion.div>
     </div>
   );
 }
 
+/* =========================
+   CERTIFICATIONS
+========================= */
 export function CertificationsSection({ focusPulse }: { focusPulse?: boolean }) {
   return (
     <div>
@@ -228,21 +562,30 @@ export function CertificationsSection({ focusPulse }: { focusPulse?: boolean }) 
         title="certifications.md"
         focusPulse={focusPulse}
         subtitleSequence={[
-          "Certifications that support my work",
+          "Certifications",
           1200,
-          "Focus: ML fundamentals + practical learning",
-          1200,
-          "Can be moved to Supabase later",
+          "Focused on practical learning",
           1200,
         ]}
       />
-      <motion.div variants={container} initial="hidden" animate="show" className="space-y-3">
-        <Card title="Introduction To Machine Learning (NPTEL)" desc="NPTEL - MoE, Govt. of India • NPTEL25CS149S233202327" />
+      <motion.div
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="space-y-3"
+      >
+        <Card
+          title="Introduction To Machine Learning (NPTEL)"
+          desc="NPTEL - MoE, Govt. of India • NPTEL25CS149S233202327"
+        />
       </motion.div>
     </div>
   );
 }
 
+/* =========================
+   VOLUNTEERING
+========================= */
 export function VolunteeringSection({ focusPulse }: { focusPulse?: boolean }) {
   return (
     <div>
@@ -250,15 +593,18 @@ export function VolunteeringSection({ focusPulse }: { focusPulse?: boolean }) {
         title="volunteering.md"
         focusPulse={focusPulse}
         subtitleSequence={[
-          "Community work that matters",
+          "Community work",
           1200,
           "Tutoring • admissions support • engagement",
           1200,
-          "Consistent contribution over time",
-          1200,
         ]}
       />
-      <motion.div variants={container} initial="hidden" animate="show" className="space-y-3">
+      <motion.div
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="space-y-3"
+      >
         <Card
           title="Nanhe Kadam Society, Jaipur — Volunteer"
           desc="Tutoring (Basics of Computing, English, Math), admissions support, fee-support via schemes, nutrition coordination, creative activities, awareness sessions, family engagement."
@@ -268,6 +614,9 @@ export function VolunteeringSection({ focusPulse }: { focusPulse?: boolean }) {
   );
 }
 
+/* =========================
+   EXTRACURRICULAR
+========================= */
 export function ExtracurricularSection({ focusPulse }: { focusPulse?: boolean }) {
   return (
     <div>
@@ -277,30 +626,48 @@ export function ExtracurricularSection({ focusPulse }: { focusPulse?: boolean })
         subtitleSequence={[
           "Workshops + club work",
           1200,
-          "Node.js • MongoDB • IEEE social media",
-          1200,
-          "Building + communicating both",
+          "Tech + communication",
           1200,
         ]}
       />
-      <motion.div variants={container} initial="hidden" animate="show" className="space-y-3">
-        <Card title="App Archives (Apr 2024) — Cherry+ Network SRM" desc="Node.js and MongoDB workshop focused on social-media style backend features." />
-        <Card title="IEEE Student Branch / IEEE CS — Social Media Volunteer" desc="Created posts, supported engagement, and promoted club events." />
+      <motion.div
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="space-y-3"
+      >
+        <Card
+          title="App Archives (Apr 2024) — Node.js + MongoDB"
+          desc="Workshop focused on social-media style backend features and practical development."
+        />
+        <Card
+          title="IEEE CS — Social Media Volunteer"
+          desc="Created posts, supported engagement, and promoted club events."
+        />
       </motion.div>
     </div>
   );
 }
 
+/* =========================
+   CONTACT
+========================= */
 export function ContactSection({ focusPulse }: { focusPulse?: boolean }) {
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [senderEmail, setSenderEmail] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<{ type: "idle" | "ok" | "err"; msg?: string }>({ type: "idle" });
+  const [status, setStatus] = useState<{
+    type: "idle" | "ok" | "err";
+    msg?: string;
+  }>({ type: "idle" });
 
   const canSubmit = useMemo(
-    () => name.trim().length >= 2 && email.trim().includes("@") && message.trim().length >= 5,
-    [name, email, message]
+    () =>
+      name.trim().length >= 2 &&
+      senderEmail.trim().includes("@") &&
+      message.trim().length >= 5,
+    [name, senderEmail, message]
   );
 
   async function onSubmit(e: React.FormEvent) {
@@ -314,7 +681,11 @@ export function ContactSection({ focusPulse }: { focusPulse?: boolean }) {
 
     setLoading(true);
     const { error } = await supabase.from("contact_messages").insert([
-      { name: name.trim(), email: email.trim(), message: message.trim() },
+      {
+        name: name.trim(),
+        email: senderEmail.trim(),
+        message: message.trim(),
+      },
     ]);
     setLoading(false);
 
@@ -325,7 +696,7 @@ export function ContactSection({ focusPulse }: { focusPulse?: boolean }) {
 
     setStatus({ type: "ok", msg: "Message sent successfully." });
     setName("");
-    setEmail("");
+    setSenderEmail("");
     setMessage("");
   }
 
@@ -337,16 +708,20 @@ export function ContactSection({ focusPulse }: { focusPulse?: boolean }) {
         subtitleSequence={[
           "Drop a message. It goes into Supabase.",
           1200,
-          "RLS should allow inserts from anon key",
-          1200,
-          "Let’s build something useful.",
+          "I usually reply via email.",
           1200,
         ]}
       />
 
-      <motion.form onSubmit={onSubmit} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.22 }} className="grid gap-3 md:grid-cols-2">
+      <motion.form
+        onSubmit={onSubmit}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.22 }}
+        className="grid gap-3 md:grid-cols-2"
+      >
         <Input label="Name" value={name} onChange={setName} />
-        <Input label="Email" value={email} onChange={setEmail} />
+        <Input label="Email" value={senderEmail} onChange={setSenderEmail} />
         <div className="md:col-span-2">
           <Input label="Message" textarea value={message} onChange={setMessage} />
         </div>
@@ -366,7 +741,12 @@ export function ContactSection({ focusPulse }: { focusPulse?: boolean }) {
         </motion.button>
 
         {status.type !== "idle" && (
-          <div className={["md:col-span-2 text-sm", status.type === "ok" ? "text-green-300" : "text-red-300"].join(" ")}>
+          <div
+            className={[
+              "md:col-span-2 text-sm",
+              status.type === "ok" ? "text-green-300" : "text-red-300",
+            ].join(" ")}
+          >
             {status.msg}
           </div>
         )}
@@ -375,24 +755,15 @@ export function ContactSection({ focusPulse }: { focusPulse?: boolean }) {
   );
 }
 
-/* helpers */
-function MotionStat({ label, value }: { label: string; value: string }) {
-  return (
-    <motion.div variants={item} whileHover={{ y: -2 }} transition={{ type: "spring", stiffness: 260, damping: 22 }}>
-      <div className="rounded-lg border border-[var(--border)] bg-white/5 p-4">
-        <div className="text-xs text-[var(--muted)]">{label}</div>
-        <div className="mt-1 text-xl font-semibold">{value}</div>
-      </div>
-    </motion.div>
-  );
-}
-
+/* =========================
+   HELPERS
+========================= */
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <motion.div variants={item}>
       <div className="rounded-lg border border-[var(--border)] bg-white/5 p-4">
         <div className="text-xs text-[var(--muted)]">{label}</div>
-        <div className="mt-1 text-sm font-semibold">{value}</div>
+        <div className="mt-1 text-sm font-semibold break-words">{value}</div>
       </div>
     </motion.div>
   );
@@ -400,15 +771,24 @@ function Info({ label, value }: { label: string; value: string }) {
 
 function Card({ title, desc }: { title: string; desc: string }) {
   return (
-    <motion.div variants={item} whileHover={{ y: -2, rotate: 0.15 }} transition={{ type: "spring", stiffness: 300, damping: 22 }}>
+    <motion.div
+      variants={item}
+      whileHover={{ y: -2, rotate: 0.15 }}
+      transition={{ type: "spring", stiffness: 300, damping: 22 }}
+    >
       <div className="rounded-lg border border-[var(--border)] bg-white/5 p-4 relative overflow-hidden">
         <div
           className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity"
-          style={{ background: "radial-gradient(600px circle at 40% 10%, var(--accent-2), transparent 60%)" }}
+          style={{
+            background:
+              "radial-gradient(600px circle at 40% 10%, var(--accent-2), transparent 60%)",
+          }}
         />
         <div className="relative">
           <div className="text-base font-semibold">{title}</div>
-          <div className="mt-2 text-sm text-[var(--muted)] leading-relaxed">{desc}</div>
+          <div className="mt-2 text-sm text-[var(--muted)] leading-relaxed">
+            {desc}
+          </div>
         </div>
       </div>
     </motion.div>
@@ -417,12 +797,26 @@ function Card({ title, desc }: { title: string; desc: string }) {
 
 function TagCard({ title, items }: { title: string; items: string[] }) {
   return (
-    <motion.div variants={item} whileHover={{ y: -2 }} transition={{ type: "spring", stiffness: 260, damping: 22 }}>
+    <motion.div
+      variants={item}
+      whileHover={{ y: -2 }}
+      transition={{ type: "spring", stiffness: 260, damping: 22 }}
+    >
       <div className="rounded-lg border border-[var(--border)] bg-white/5 p-4">
         <div className="text-base font-semibold">{title}</div>
-        <motion.div variants={container} initial="hidden" animate="show" className="mt-3 flex flex-wrap gap-2">
+        <motion.div
+          variants={container}
+          initial="hidden"
+          animate="show"
+          className="mt-3 flex flex-wrap gap-2"
+        >
           {items.map((t) => (
-            <motion.span key={t} variants={item} whileHover={{ y: -1 }} className="rounded-md border border-[var(--border)] bg-black/10 px-2 py-1 text-xs text-[var(--muted)]">
+            <motion.span
+              key={t}
+              variants={item}
+              whileHover={{ y: -1 }}
+              className="rounded-md border border-[var(--border)] bg-black/10 px-2 py-1 text-xs text-[var(--muted)]"
+            >
               {t}
             </motion.span>
           ))}
@@ -471,7 +865,12 @@ function Timeline({
   clickable?: boolean;
 }) {
   return (
-    <motion.div variants={container} initial="hidden" animate="show" className="relative pl-6">
+    <motion.div
+      variants={container}
+      initial="hidden"
+      animate="show"
+      className="relative pl-6"
+    >
       <motion.div
         initial={{ scaleY: 0, opacity: 0 }}
         animate={{ scaleY: 1, opacity: 1 }}
@@ -493,9 +892,13 @@ function Timeline({
               <div className="absolute -left-[22px] top-[8px] h-3 w-3 rounded-full border border-[var(--border)] bg-[var(--bg-panel)]" />
               <div className="rounded-lg border border-[var(--border)] bg-white/5 p-4">
                 <div className="text-base font-semibold">{it.title}</div>
-                <div className="mt-2 text-sm text-[var(--muted)] leading-relaxed">{it.desc}</div>
+                <div className="mt-2 text-sm text-[var(--muted)] leading-relaxed">
+                  {it.desc}
+                </div>
                 {clickable ? (
-                  <div className="mt-3 text-xs text-[var(--accent-2)] font-semibold">Open Peek →</div>
+                  <div className="mt-3 text-xs text-[var(--accent-2)] font-semibold">
+                    Open Peek →
+                  </div>
                 ) : null}
               </div>
             </div>

@@ -12,13 +12,18 @@
 }
 
 :root[data-theme="light"] {
-  --bg-main: #f7f7fb;
-  --bg-sidebar: #f0f0f7;
-  --bg-panel: #ffffff;
-  --accent: #3b5bdb;
-  --muted: #4b5563;
-  --border: rgba(15, 23, 42, 0.12);
-  --foreground: #0f172a;
+  --background: #dde3ee;
+  --foreground: #0b1220;
+
+  --bg-main: #dde3ee;
+  --bg-panel: rgba(255, 255, 255, 0.58);
+  --bg-sidebar: rgba(255, 255, 255, 0.44);
+
+  --border: rgba(11, 18, 32, 0.16);
+  --muted: rgba(11, 18, 32, 0.72);
+
+  --accent: #3b82f6;
+  --accent-2: #2563eb;
 }
 
 html,
