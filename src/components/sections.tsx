@@ -900,7 +900,7 @@ function Timeline({
                 </div>
                 {clickable ? (
                   <div className="mt-3 text-xs text-[var(--accent-2)] font-semibold">
-                    Open Peek →
+                    Peek →
                   </div>
                 ) : null}
               </div>
