@@ -4,17 +4,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import ThemeToggle from "@/components/ThemeToggle";
 import { supabase } from "@/lib/supabaseClient";
-import {
-  AboutSection,
-  CertificationsSection,
-  ContactSection,
-  EducationSection,
-  ExtracurricularSection,
-  ProjectsSection,
-  SkillsSection,
-  SummarySection,
-  VolunteeringSection,
-} from "@/components/sections";
+import BackgroundFX from "@/components/BackgroundFX";
+import PeekPanel, { PeekProject } from "@/components/PeekPanel";
 
 import {
   FileText,
@@ -29,6 +20,18 @@ import {
   Search,
 } from "lucide-react";
 
+import {
+  AboutSection,
+  CertificationsSection,
+  ContactSection,
+  EducationSection,
+  ExtracurricularSection,
+  ProjectsSection,
+  SkillsSection,
+  SummarySection,
+  VolunteeringSection,
+} from "@/components/sections";
+
 type FileKey =
   | "summary.md"
   | "about.json"
@@ -42,16 +45,16 @@ type FileKey =
 
 type Tab = { key: FileKey; title: string };
 
-const fileMeta: Record<FileKey, { title: string; Icon: React.ElementType }> = {
-  "summary.md": { title: "summary.md", Icon: FileText },
-  "about.json": { title: "about.json", Icon: User },
-  "education.md": { title: "education.md", Icon: GraduationCap },
-  "projects/": { title: "projects/", Icon: FolderGit2 },
-  "skills.ts": { title: "skills.ts", Icon: Brain },
-  "certifications.md": { title: "certifications.md", Icon: BadgeCheck },
-  "volunteering.md": { title: "volunteering.md", Icon: HeartHandshake },
-  "extracurricular.md": { title: "extracurricular.md", Icon: Sparkles },
-  "contact.ts": { title: "contact.ts", Icon: Send },
+const fileMeta: Record<FileKey, { title: string; Icon: React.ElementType; accent: string }> = {
+  "summary.md": { title: "summary.md", Icon: FileText, accent: "rgba(122,162,247,0.55)" },
+  "about.json": { title: "about.json", Icon: User, accent: "rgba(158,206,106,0.55)" },
+  "education.md": { title: "education.md", Icon: GraduationCap, accent: "rgba(224,175,104,0.55)" },
+  "projects/": { title: "projects/", Icon: FolderGit2, accent: "rgba(125,207,255,0.55)" },
+  "skills.ts": { title: "skills.ts", Icon: Brain, accent: "rgba(187,154,247,0.55)" },
+  "certifications.md": { title: "certifications.md", Icon: BadgeCheck, accent: "rgba(247,118,142,0.55)" },
+  "volunteering.md": { title: "volunteering.md", Icon: HeartHandshake, accent: "rgba(115,218,202,0.55)" },
+  "extracurricular.md": { title: "extracurricular.md", Icon: Sparkles, accent: "rgba(255,158,100,0.55)" },
+  "contact.ts": { title: "contact.ts", Icon: Send, accent: "rgba(192,202,245,0.55)" },
 };
 
 export default function VscodeShell() {
@@ -61,6 +64,7 @@ export default function VscodeShell() {
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [paletteIndex, setPaletteIndex] = useState(0);
 
   const filtered = fileList
     .map((k) => ({ key: k, ...fileMeta[k] }))
@@ -68,16 +72,23 @@ export default function VscodeShell() {
     .slice(0, 20);
 
   const [sbState, setSbState] = useState<"checking" | "connected" | "offline">("checking");
+  const [focusPulse, setFocusPulse] = useState(false);
+  const [focusDim, setFocusDim] = useState(false);
+
+  const [peekOpen, setPeekOpen] = useState(false);
+  const [peekProject, setPeekProject] = useState<PeekProject | null>(null);
 
   const editorRef = useRef<HTMLDivElement | null>(null);
   const [glow, setGlow] = useState({ x: 0, y: 0, visible: false });
 
   function openFile(key: FileKey) {
     setActiveKey(key);
-    setTabs((prev) => {
-      if (prev.some((t) => t.key === key)) return prev;
-      return [...prev, { key, title: fileMeta[key].title }];
-    });
+    setTabs((prev) => (prev.some((t) => t.key === key) ? prev : [...prev, { key, title: fileMeta[key].title }]));
+
+    setFocusPulse(true);
+    setFocusDim(true);
+    window.setTimeout(() => setFocusPulse(false), 550);
+    window.setTimeout(() => setFocusDim(false), 200);
   }
 
   function closeTab(key: FileKey) {
@@ -91,26 +102,54 @@ export default function VscodeShell() {
     });
   }
 
+  function openPeek(p: PeekProject) {
+    setPeekProject(p);
+    setPeekOpen(true);
+  }
+
+  function closePeek() {
+    setPeekOpen(false);
+    window.setTimeout(() => setPeekProject(null), 180);
+  }
+
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPaletteOpen(true);
+        setPaletteIndex(0);
+        return;
       }
-      if (e.key === "Escape") setPaletteOpen(false);
-      if (paletteOpen && e.key === "Enter") {
+
+      if (e.key === "Escape") {
+        setPaletteOpen(false);
+        return;
+      }
+
+      if (!paletteOpen) return;
+
+      if (e.key === "ArrowDown") {
         e.preventDefault();
-        const first = filtered[0];
-        if (first) {
-          openFile(first.key);
+        setPaletteIndex((i) => Math.min(i + 1, Math.max(filtered.length - 1, 0)));
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setPaletteIndex((i) => Math.max(i - 1, 0));
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const sel = filtered[paletteIndex];
+        if (sel) {
+          openFile(sel.key);
           setPaletteOpen(false);
           setQuery("");
         }
       }
     }
+
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [paletteOpen, filtered]);
+  }, [paletteOpen, filtered, paletteIndex]);
 
   useEffect(() => {
     const el = editorRef.current;
@@ -154,7 +193,6 @@ export default function VscodeShell() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-main)] text-[var(--foreground)]">
-      {/* Top Bar */}
       <div className="h-12 flex items-center justify-between px-3 border-b border-[var(--border)] bg-black/20 backdrop-blur">
         <div className="flex items-center gap-2">
           <div className="flex gap-2">
@@ -174,9 +212,7 @@ export default function VscodeShell() {
         </div>
       </div>
 
-      {/* Main */}
       <div className="grid grid-cols-[260px_1fr] min-h-[calc(100vh-48px-32px)]">
-        {/* Explorer */}
         <motion.div
           initial={{ x: -16, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
@@ -191,9 +227,11 @@ export default function VscodeShell() {
               <span className="opacity-90">PORTFOLIO</span>
             </div>
 
-            <div className="mt-2 space-y-1 text-sm">
+            <div className="mt-2 space-y-1 text-sm relative">
               {fileList.map((k) => {
                 const Icon = fileMeta[k].Icon;
+                const isActive = activeKey === k;
+
                 return (
                   <motion.div
                     key={k}
@@ -201,12 +239,18 @@ export default function VscodeShell() {
                     whileTap={{ scale: 0.985 }}
                     onClick={() => openFile(k)}
                     className={[
-                      "px-2 py-1 rounded-md cursor-pointer flex items-center gap-2 select-none",
-                      activeKey === k
-                        ? "bg-white/10 text-[var(--foreground)]"
-                        : "text-[var(--muted)] hover:bg-white/5",
+                      "px-2 py-1 rounded-md cursor-pointer flex items-center gap-2 select-none relative",
+                      isActive ? "bg-white/10 text-[var(--foreground)]" : "text-[var(--muted)] hover:bg-white/5",
                     ].join(" ")}
                   >
+                    {isActive ? (
+                      <motion.span
+                        layoutId="activeIndicator"
+                        className="absolute left-0 top-1 bottom-1 w-[3px] rounded-full"
+                        style={{ background: "var(--accent-2)" }}
+                      />
+                    ) : null}
+
                     <Icon size={16} className="opacity-90" />
                     <span>{fileMeta[k].title}</span>
                   </motion.div>
@@ -216,7 +260,10 @@ export default function VscodeShell() {
 
             <div className="mt-4 px-2">
               <button
-                onClick={() => setPaletteOpen(true)}
+                onClick={() => {
+                  setPaletteOpen(true);
+                  setPaletteIndex(0);
+                }}
                 className="w-full rounded-md border border-[var(--border)] bg-white/5 px-3 py-2 text-xs text-[var(--muted)] hover:bg-white/10 flex items-center justify-center gap-2"
               >
                 <Search size={14} />
@@ -226,52 +273,70 @@ export default function VscodeShell() {
           </div>
         </motion.div>
 
-        {/* Editor */}
         <div ref={editorRef} className="relative bg-[var(--bg-main)] overflow-hidden">
-          {/* Cursor glow */}
+          <div style={{ ["--accent-2" as any]: fileMeta[activeKey].accent }} className="absolute inset-0">
+            <BackgroundFX accent={fileMeta[activeKey].accent} />
+          </div>
+
+          <AnimatePresence>
+            {focusDim ? (
+              <motion.div
+                className="absolute inset-0 z-10 bg-black/25"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              />
+            ) : null}
+          </AnimatePresence>
+
           <div
-            className="pointer-events-none absolute inset-0"
+            className="pointer-events-none absolute inset-0 z-[5]"
             style={{
               opacity: glow.visible ? 1 : 0,
               transition: "opacity 200ms ease",
-              background: `radial-gradient(650px circle at ${glow.x}px ${glow.y}px, rgba(122,162,247,0.18), transparent 55%)`,
+              background: `radial-gradient(650px circle at ${glow.x}px ${glow.y}px, rgba(255,255,255,0.06), transparent 55%)`,
             }}
           />
 
-          {/* Tabs */}
-          <div className="relative h-10 flex items-end border-b border-[var(--border)] bg-black/10 overflow-x-auto">
-            {tabs.map((t) => (
-              <motion.div
-                key={t.key}
-                whileHover={{ y: -1 }}
-                transition={{ type: "spring", stiffness: 420, damping: 26 }}
-                className={[
-                  "h-10 px-3 flex items-center gap-2 border-r border-[var(--border)] text-sm cursor-pointer",
-                  activeKey === t.key
-                    ? "bg-[var(--bg-panel)] text-[var(--foreground)]"
-                    : "text-[var(--muted)] hover:bg-white/5",
-                ].join(" ")}
-                onClick={() => setActiveKey(t.key)}
-              >
-                <span className="whitespace-nowrap">{t.title}</span>
-                {tabs.length > 1 ? (
-                  <button
-                    className="ml-1 px-1 hover:bg-white/10 rounded"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      closeTab(t.key);
-                    }}
-                    aria-label="Close tab"
+          <div className="relative h-10 flex items-end border-b border-[var(--border)] bg-black/10 overflow-x-auto z-20">
+            <AnimatePresence initial={false}>
+              {tabs.map((t) => (
+                <motion.div
+                  key={t.key}
+                  initial={{ width: 0, opacity: 0 }}
+                  animate={{ width: "auto", opacity: 1 }}
+                  exit={{ width: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <motion.div
+                    whileHover={{ y: -1 }}
+                    transition={{ type: "spring", stiffness: 420, damping: 26 }}
+                    className={[
+                      "h-10 px-3 flex items-center gap-2 border-r border-[var(--border)] text-sm cursor-pointer whitespace-nowrap",
+                      activeKey === t.key ? "bg-[var(--bg-panel)] text-[var(--foreground)]" : "text-[var(--muted)] hover:bg-white/5",
+                    ].join(" ")}
+                    onClick={() => setActiveKey(t.key)}
                   >
-                    ×
-                  </button>
-                ) : null}
-              </motion.div>
-            ))}
+                    <span>{t.title}</span>
+                    {tabs.length > 1 ? (
+                      <button
+                        className="ml-1 px-1 hover:bg-white/10 rounded"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          closeTab(t.key);
+                        }}
+                        aria-label="Close tab"
+                      >
+                        ×
+                      </button>
+                    ) : null}
+                  </motion.div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
 
-          {/* Content */}
-          <div className="relative p-6">
+          <div className="relative p-6 z-20">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeKey}
@@ -279,16 +344,18 @@ export default function VscodeShell() {
                 animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                 exit={{ opacity: 0, y: -8, filter: "blur(2px)" }}
                 transition={{ duration: 0.22 }}
-                className="rounded-xl border border-[var(--border)] bg-white/5 p-6"
+                className="rounded-xl border border-[var(--border)] bg-white/5 p-6 relative"
+                style={{ ["--accent-2" as any]: fileMeta[activeKey].accent }}
               >
-                {renderSection(activeKey)}
+                {renderSection(activeKey, focusPulse, openPeek)}
               </motion.div>
             </AnimatePresence>
           </div>
+
+          <PeekPanel open={peekOpen} project={peekProject} onClose={closePeek} />
         </div>
       </div>
 
-      {/* Command Palette */}
       <AnimatePresence>
         {paletteOpen && (
           <motion.div
@@ -302,33 +369,39 @@ export default function VscodeShell() {
               initial={{ y: -20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -10, opacity: 0 }}
-              className="w-[520px] max-w-[92vw] rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] shadow-2xl overflow-hidden"
+              className="w-[560px] max-w-[92vw] rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] shadow-2xl overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="px-4 py-2 text-xs text-[var(--muted)] border-b border-[var(--border)]">
-                Command Palette
-              </div>
+              <div className="px-4 py-2 text-xs text-[var(--muted)] border-b border-[var(--border)]">Command Palette</div>
 
               <input
                 autoFocus
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Type a file name... (Enter opens first result, Esc closes)"
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setPaletteIndex(0);
+                }}
+                placeholder="Search files... (↑↓ select, Enter open, Esc close)"
                 className="w-full px-4 py-3 bg-transparent border-b border-[var(--border)] outline-none text-sm"
               />
 
-              <div className="max-h-60 overflow-y-auto">
-                {filtered.map((f) => {
+              <div className="max-h-64 overflow-y-auto">
+                {filtered.map((f, idx) => {
                   const Icon = f.Icon;
+                  const selected = idx === paletteIndex;
                   return (
                     <div
                       key={f.key}
+                      onMouseEnter={() => setPaletteIndex(idx)}
                       onClick={() => {
                         openFile(f.key);
                         setPaletteOpen(false);
                         setQuery("");
                       }}
-                      className="px-4 py-2 text-sm cursor-pointer hover:bg-white/5 flex items-center gap-2"
+                      className={[
+                        "px-4 py-2 text-sm cursor-pointer flex items-center gap-2",
+                        selected ? "bg-white/10" : "hover:bg-white/5",
+                      ].join(" ")}
                     >
                       <Icon size={16} className="opacity-90" />
                       <span>{f.title}</span>
@@ -342,25 +415,15 @@ export default function VscodeShell() {
         )}
       </AnimatePresence>
 
-      {/* Status Bar */}
       <div className="h-8 border-t border-[var(--border)] bg-black/20 flex items-center justify-between px-3 text-xs text-[var(--muted)]">
         <div className="flex items-center gap-3">
           <span>main</span>
           <span>0 problems</span>
         </div>
-
         <div className="flex items-center gap-3">
           <span>TypeScript</span>
           <span>UTF-8</span>
-          <span
-            className={
-              sbState === "connected"
-                ? "text-green-300"
-                : sbState === "offline"
-                ? "text-red-300"
-                : "text-[var(--accent)]"
-            }
-          >
+          <span className={sbState === "connected" ? "text-green-300" : sbState === "offline" ? "text-red-300" : "text-[var(--accent-2)]"}>
             Supabase: {sbState === "checking" ? "checking..." : sbState}
           </span>
         </div>
@@ -369,26 +432,26 @@ export default function VscodeShell() {
   );
 }
 
-function renderSection(key: FileKey) {
+function renderSection(key: FileKey, focusPulse: boolean, openPeek: (p: PeekProject) => void) {
   switch (key) {
     case "summary.md":
-      return <SummarySection />;
+      return <SummarySection focusPulse={focusPulse} />;
     case "about.json":
-      return <AboutSection />;
+      return <AboutSection focusPulse={focusPulse} />;
     case "education.md":
-      return <EducationSection />;
+      return <EducationSection focusPulse={focusPulse} />;
     case "projects/":
-      return <ProjectsSection />;
+      return <ProjectsSection focusPulse={focusPulse} onPeek={openPeek} />;
     case "skills.ts":
-      return <SkillsSection />;
+      return <SkillsSection focusPulse={focusPulse} />;
     case "certifications.md":
-      return <CertificationsSection />;
+      return <CertificationsSection focusPulse={focusPulse} />;
     case "volunteering.md":
-      return <VolunteeringSection />;
+      return <VolunteeringSection focusPulse={focusPulse} />;
     case "extracurricular.md":
-      return <ExtracurricularSection />;
+      return <ExtracurricularSection focusPulse={focusPulse} />;
     case "contact.ts":
-      return <ContactSection />;
+      return <ContactSection focusPulse={focusPulse} />;
     default:
       return null;
   }
