@@ -81,6 +81,33 @@ export default function VscodeShell() {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const [glow, setGlow] = useState({ x: 0, y: 0, visible: false });
 
+  // Theme watcher so overlays can be theme-aware
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  useEffect(() => {
+    const root = document.documentElement;
+
+    function syncTheme() {
+      const t = (root.getAttribute("data-theme") as "dark" | "light") || "dark";
+      setTheme(t);
+    }
+
+    syncTheme();
+
+    const obs = new MutationObserver(syncTheme);
+    obs.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+
+    return () => obs.disconnect();
+  }, []);
+
+  // Theme-aware overlay colors (prevents "foggy" look in light mode)
+  const topBarBg = theme === "dark" ? "rgba(0,0,0,0.20)" : "rgba(246,241,230,0.78)";
+  const tabsBg = theme === "dark" ? "rgba(0,0,0,0.10)" : "rgba(246,241,230,0.62)";
+  const statusBg = theme === "dark" ? "rgba(0,0,0,0.20)" : "rgba(246,241,230,0.78)";
+  const focusDimBg = theme === "dark" ? "rgba(0,0,0,0.25)" : "rgba(19,38,28,0.10)";
+
+  // Make BackgroundFX lighter in light mode
+  const bgFxOpacity = theme === "dark" ? 1 : 0.75;
+
   function openFile(key: FileKey) {
     setActiveKey(key);
     setTabs((prev) => (prev.some((t) => t.key === key) ? prev : [...prev, { key, title: fileMeta[key].title }]));
@@ -193,7 +220,11 @@ export default function VscodeShell() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-main)] text-[var(--foreground)]">
-      <div className="h-12 flex items-center justify-between px-3 border-b border-[var(--border)] bg-black/20 backdrop-blur">
+      {/* Top bar */}
+      <div
+        className="h-12 flex items-center justify-between px-3 border-b border-[var(--border)] backdrop-blur"
+        style={{ background: topBarBg }}
+      >
         <div className="flex items-center gap-2">
           <div className="flex gap-2">
             <span className="h-3 w-3 rounded-full bg-[#ff5f56]" />
@@ -212,7 +243,9 @@ export default function VscodeShell() {
         </div>
       </div>
 
+      {/* Main layout */}
       <div className="grid grid-cols-[260px_1fr] min-h-[calc(100vh-48px-32px)]">
+        {/* Sidebar */}
         <motion.div
           initial={{ x: -16, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
@@ -240,7 +273,9 @@ export default function VscodeShell() {
                     onClick={() => openFile(k)}
                     className={[
                       "px-2 py-1 rounded-md cursor-pointer flex items-center gap-2 select-none relative",
-                      isActive ? "bg-white/10 text-[var(--foreground)]" : "text-[var(--muted)] hover:bg-white/5",
+                      isActive
+  ? "bg-[var(--bg-panel)] text-[var(--foreground)]"
+  : "text-[var(--muted)] hover:bg-black/5",
                     ].join(" ")}
                   >
                     {isActive ? (
@@ -273,15 +308,25 @@ export default function VscodeShell() {
           </div>
         </motion.div>
 
+        {/* Editor */}
         <div ref={editorRef} className="relative bg-[var(--bg-main)] overflow-hidden">
-          <div style={{ ["--accent-2" as any]: fileMeta[activeKey].accent }} className="absolute inset-0">
+          {/* Animated background (theme aware) */}
+          <div
+            style={{
+              ["--accent-2" as any]: fileMeta[activeKey].accent,
+              opacity: bgFxOpacity,
+            }}
+            className="absolute inset-0"
+          >
             <BackgroundFX accent={fileMeta[activeKey].accent} />
           </div>
 
+          {/* Focus dim overlay (theme aware) */}
           <AnimatePresence>
             {focusDim ? (
               <motion.div
-                className="absolute inset-0 z-10 bg-black/25"
+                className="absolute inset-0 z-10"
+                style={{ background: focusDimBg }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -289,16 +334,24 @@ export default function VscodeShell() {
             ) : null}
           </AnimatePresence>
 
+          {/* Cursor glow (theme aware, stops light mode looking foggy) */}
           <div
             className="pointer-events-none absolute inset-0 z-[5]"
             style={{
               opacity: glow.visible ? 1 : 0,
               transition: "opacity 200ms ease",
-              background: `radial-gradient(650px circle at ${glow.x}px ${glow.y}px, rgba(255,255,255,0.06), transparent 55%)`,
+              background:
+                theme === "dark"
+                  ? `radial-gradient(650px circle at ${glow.x}px ${glow.y}px, rgba(255,255,255,0.06), transparent 55%)`
+                  : `radial-gradient(680px circle at ${glow.x}px ${glow.y}px, rgba(31,107,69,0.10), transparent 58%)`,
             }}
           />
 
-          <div className="relative h-10 flex items-end border-b border-[var(--border)] bg-black/10 overflow-x-auto z-20">
+          {/* Tabs bar */}
+          <div
+            className="relative h-10 flex items-end border-b border-[var(--border)] overflow-x-auto z-20 backdrop-blur"
+            style={{ background: tabsBg }}
+          >
             <AnimatePresence initial={false}>
               {tabs.map((t) => (
                 <motion.div
@@ -336,6 +389,7 @@ export default function VscodeShell() {
             </AnimatePresence>
           </div>
 
+          {/* Content */}
           <div className="relative p-6 z-20">
             <AnimatePresence mode="wait">
               <motion.div
@@ -344,7 +398,7 @@ export default function VscodeShell() {
                 animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                 exit={{ opacity: 0, y: -8, filter: "blur(2px)" }}
                 transition={{ duration: 0.22 }}
-                className="rounded-xl border border-[var(--border)] bg-white/5 p-6 relative"
+                className="rounded-xl border border-[var(--border)] bg-white/5 p-6 relative shadow-[0_1px_0_rgba(0,0,0,0.05)]"
                 style={{ ["--accent-2" as any]: fileMeta[activeKey].accent }}
               >
                 {renderSection(activeKey, focusPulse, openPeek)}
@@ -356,6 +410,7 @@ export default function VscodeShell() {
         </div>
       </div>
 
+      {/* Command palette */}
       <AnimatePresence>
         {paletteOpen && (
           <motion.div
@@ -372,7 +427,9 @@ export default function VscodeShell() {
               className="w-[560px] max-w-[92vw] rounded-xl border border-[var(--border)] bg-[var(--bg-panel)] shadow-2xl overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="px-4 py-2 text-xs text-[var(--muted)] border-b border-[var(--border)]">Command Palette</div>
+              <div className="px-4 py-2 text-xs text-[var(--muted)] border-b border-[var(--border)]">
+                Command Palette
+              </div>
 
               <input
                 autoFocus
@@ -408,14 +465,20 @@ export default function VscodeShell() {
                     </div>
                   );
                 })}
-                {filtered.length === 0 && <div className="px-4 py-3 text-sm text-[var(--muted)]">No results</div>}
+                {filtered.length === 0 && (
+                  <div className="px-4 py-3 text-sm text-[var(--muted)]">No results</div>
+                )}
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="h-8 border-t border-[var(--border)] bg-black/20 flex items-center justify-between px-3 text-xs text-[var(--muted)]">
+      {/* Bottom status bar */}
+      <div
+        className="h-8 border-t border-[var(--border)] flex items-center justify-between px-3 text-xs text-[var(--muted)] backdrop-blur"
+        style={{ background: statusBg }}
+      >
         <div className="flex items-center gap-3">
           <span>main</span>
           <span>0 problems</span>
@@ -423,9 +486,22 @@ export default function VscodeShell() {
         <div className="flex items-center gap-3">
           <span>TypeScript</span>
           <span>UTF-8</span>
-          <span className={sbState === "connected" ? "text-green-300" : sbState === "offline" ? "text-red-300" : "text-[var(--accent-2)]"}>
-            Supabase: {sbState === "checking" ? "checking..." : sbState}
-          </span>
+<span
+  className={[
+    "px-2 py-[2px] rounded-md border border-[var(--border)]",
+    sbState === "connected"
+      ? theme === "dark"
+        ? "text-green-300 bg-white/5"
+        : "text-[var(--accent)] bg-[var(--bg-panel)]"
+      : sbState === "offline"
+      ? theme === "dark"
+        ? "text-red-300 bg-white/5"
+        : "text-red-700 bg-[var(--bg-panel)]"
+      : "text-[var(--accent-2)] bg-white/5",
+  ].join(" ")}
+>
+  Supabase: {sbState === "checking" ? "checking..." : sbState}
+</span>
         </div>
       </div>
     </div>

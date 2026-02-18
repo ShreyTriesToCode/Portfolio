@@ -166,7 +166,10 @@ export function SummarySection({ focusPulse }: { focusPulse?: boolean }) {
         transition={{ delay: 0.12 }}
         className="mt-5 text-[var(--muted)] leading-relaxed"
       >
-        Use <span className="text-[var(--accent-2)] font-semibold">Cmd+K</span>{" "}
+        Use{" "}
+<span className="px-2 py-[2px] rounded-md border border-[var(--border)] bg-[var(--bg-panel)] text-[var(--accent-2)] font-semibold">
+  Cmd+K
+</span>{" "}
         for fast navigation. Projects open in the Peek panel.
       </motion.p>
     </div>

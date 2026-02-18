@@ -5,25 +5,32 @@
   --bg-main: #1e1e2e;
   --bg-sidebar: #181825;
   --bg-panel: #24243a;
+
   --accent: #7aa2f7;
+  --accent-2: #9eceff;
+
   --muted: #a9b1d6;
   --border: rgba(255, 255, 255, 0.08);
   --foreground: #e6e6f0;
 }
 
+/* LIGHT: Cream editor + cream UI + dark green accents */
 :root[data-theme="light"] {
-  --background: #dde3ee;
-  --foreground: #0b1220;
+  /* main surfaces */
+  --bg-main: #f1ecdf;        /* editor cream (NOT white) */
+  --bg-sidebar: #e9e2d2;     /* slightly deeper cream */
+  --bg-panel: #f6f1e6;       /* cards/panels a bit lighter */
 
-  --bg-main: #dde3ee;
-  --bg-panel: rgba(255, 255, 255, 0.58);
-  --bg-sidebar: rgba(255, 255, 255, 0.44);
+  /* text */
+  --foreground: #15241c;     /* dark ink green */
+  --muted: rgba(21, 36, 28, 0.72);
 
-  --border: rgba(11, 18, 32, 0.16);
-  --muted: rgba(11, 18, 32, 0.72);
+  /* borders (slightly stronger so UI doesn't look washed) */
+  --border: rgba(21, 36, 28, 0.18);
 
-  --accent: #3b82f6;
-  --accent-2: #2563eb;
+  /* accents (used for Cmd+K etc) */
+  --accent: #1f6b45;         /* dark green */
+  --accent-2: #2f8257;       /* highlight green */
 }
 
 html,
@@ -35,4 +42,11 @@ body {
   margin: 0;
   background: var(--bg-main);
   color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Optional: links / accent text should be readable in light mode */
+a {
+  color: var(--accent);
 }
