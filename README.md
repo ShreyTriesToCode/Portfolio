@@ -23,7 +23,7 @@ It looks and behaves like a mini editor:
 
 ## Features
 - VS Code–style UI (Explorer + Tabs + Editor)
-- Command Palette: `Cmd+K` / `Ctrl+K`
+- Command Palette: `Cmd+K` / `Ctrl+Shift+K`
 - Dark/Light theme (default: dark)
 - Animated grid + aura background (theme-aware)
 - Supabase integration:
