@@ -242,5 +242,25 @@ function skipped(repo: string, reasons: string[]): RepoValidationResult {
 }
 
 function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
+  if (error instanceof Error) return error.message;
+
+  if (error && typeof error === "object") {
+    const maybeError = error as {
+      message?: unknown;
+      details?: unknown;
+      hint?: unknown;
+      code?: unknown;
+    };
+
+    const parts = [
+      maybeError.message ? `message: ${String(maybeError.message)}` : "",
+      maybeError.details ? `details: ${String(maybeError.details)}` : "",
+      maybeError.hint ? `hint: ${String(maybeError.hint)}` : "",
+      maybeError.code ? `code: ${String(maybeError.code)}` : "",
+    ].filter(Boolean);
+
+    return parts.length ? parts.join(" | ") : JSON.stringify(error);
+  }
+
+  return String(error);
 }
