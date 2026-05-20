@@ -1,0 +1,3 @@
+[mcp_servers.portfolio]
+command = "npm"
+args = ["run", "mcp:portfolio"]

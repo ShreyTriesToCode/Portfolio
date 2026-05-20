@@ -1,16 +1,6 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 export const metadata: Metadata = {
   title: {
     default: "Shreyansh Singhal | Portfolio",
@@ -27,13 +17,13 @@ export const metadata: Metadata = {
     "Flutter",
     "Machine Learning",
   ],
-  metadataBase: new URL("https:mydomain.com"),
+  metadataBase: new URL("https://portfolio.shreybuilds.com"),
   openGraph: {
     title: "Shreyansh Singhal | Portfolio",
     description:
       "VS Code themed portfolio. Full Stack, App Development, and ML projects.",
     type: "website",
-    url: "https://mydomain.com",
+    url: "https://portfolio.shreybuilds.com",
   },
   twitter: {
     card: "summary_large_image",
@@ -41,14 +31,31 @@ export const metadata: Metadata = {
     description:
       "VS Code themed portfolio. Full Stack, App Development, and ML projects.",
   },
+  icons: {
+    icon: "/portfolio-icon.svg",
+    shortcut: "/portfolio-icon.svg",
+    apple: "/portfolio-icon.svg",
+  },
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const themeInitScript = `
+    try {
+      var savedTheme = window.localStorage.getItem("theme");
+      document.documentElement.setAttribute("data-theme", savedTheme === "light" ? "light" : "dark");
+    } catch (_) {
+      document.documentElement.setAttribute("data-theme", "dark");
+    }
+  `;
+
   return (
-    <html lang="en" data-theme="dark">
-      <body>{children}</body>
+    <html lang="en" data-theme="dark" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body suppressHydrationWarning>{children}</body>
     </html>
   );
 }

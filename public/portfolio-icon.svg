@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Shrey portfolio icon">
+  <rect width="64" height="64" rx="14" fill="#071114"/>
+  <path d="M18 19h28a6 6 0 0 1 6 6v22H18a6 6 0 0 1-6-6V25a6 6 0 0 1 6-6Z" fill="#0e1f24" stroke="#4fd1c5" stroke-opacity=".42" stroke-width="2"/>
+  <path d="m25 27-7 6 7 6" fill="none" stroke="#8be9d4" stroke-linecap="round" stroke-linejoin="round" stroke-width="4"/>
+  <path d="m39 27 7 6-7 6" fill="none" stroke="#f7c873" stroke-linecap="round" stroke-linejoin="round" stroke-width="4"/>
+  <path d="M31 43 36 21" fill="none" stroke="#eef8f8" stroke-linecap="round" stroke-width="3"/>
+</svg>
