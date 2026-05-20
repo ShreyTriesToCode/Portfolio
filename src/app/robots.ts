@@ -6,6 +6,6 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
     },
-    sitemap: "https://mydomain.com/sitemap.xml",
+    sitemap: "https://portfolio.shreybuilds.com/sitemap.xml",
   };
 }
